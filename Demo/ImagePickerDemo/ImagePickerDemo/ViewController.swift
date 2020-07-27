@@ -1,5 +1,5 @@
 import UIKit
-import ImagePicker
+import ImagePickerCropio
 
 class ViewController: UIViewController, ImagePickerDelegate {
 

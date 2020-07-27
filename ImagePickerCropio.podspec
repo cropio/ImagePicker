@@ -1,5 +1,5 @@
 Pod::Spec.new do |s|
-  s.name             = "ImagePicker"
+  s.name             = "ImagePickerCropio"
   s.summary          = "Reinventing the way ImagePicker works."
   s.version          = "3.2.1"
   s.homepage         = "https://github.com/cropio/ImagePicker"
