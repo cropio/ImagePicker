@@ -14,7 +14,7 @@ open class BottomContainerView: UIView {
     static let height: CGFloat = 101
   }
 
-  var configuration = Configuration()
+  var configuration = ImagePickerConfiguration()
 
   lazy var pickerButton: ButtonPicker = { [unowned self] in
     let pickerButton = ButtonPicker(configuration: self.configuration)
@@ -65,7 +65,7 @@ open class BottomContainerView: UIView {
 
   // MARK: Initializers
 
-  public init(configuration: Configuration? = nil) {
+  public init(configuration: ImagePickerConfiguration? = nil) {
     if let configuration = configuration {
       self.configuration = configuration
     }
@@ -88,6 +88,13 @@ open class BottomContainerView: UIView {
     stackView.addGestureRecognizer(tapGestureRecognizer)
 
     setupConstraints()
+    if configuration.galleryOnly {
+      borderPickerButton.isHidden = true
+      pickerButton.isHidden = true
+    }
+    if !configuration.allowMultiplePhotoSelection {
+      stackView.isHidden = true
+    }
   }
 
   // MARK: - Action methods

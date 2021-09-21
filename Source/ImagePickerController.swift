@@ -21,7 +21,7 @@ import Photos
 
 open class ImagePickerController: UIViewController {
 
-  let configuration: Configuration
+  let configuration: ImagePickerConfiguration
 
   struct GestureConstants {
     static let maximumHeight: CGFloat = 200
@@ -100,18 +100,18 @@ open class ImagePickerController: UIViewController {
 
   // MARK: - Initialization
 
-  @objc public required init(configuration: Configuration = Configuration()) {
+  @objc public required init(configuration: ImagePickerConfiguration = ImagePickerConfiguration()) {
     self.configuration = configuration
     super.init(nibName: nil, bundle: nil)
   }
 
   public override init(nibName nibNameOrNil: String?, bundle nibBundleOrNil: Bundle?) {
-    self.configuration = Configuration()
+    self.configuration = ImagePickerConfiguration()
     super.init(nibName: nibNameOrNil, bundle: nibBundleOrNil)
   }
   
   public required init?(coder aDecoder: NSCoder) {
-    self.configuration = Configuration()
+    self.configuration = ImagePickerConfiguration()
     super.init(coder: aDecoder)
   }
 
@@ -119,10 +119,20 @@ open class ImagePickerController: UIViewController {
 
   open override func viewDidLoad() {
     super.viewDidLoad()
-
-    for subview in [cameraController.view, galleryView, bottomContainer, topView] {
-      view.addSubview(subview!)
-      subview?.translatesAutoresizingMaskIntoConstraints = false
+    
+    let addSubview: (UIView) -> Void = { subview in
+      self.view.addSubview(subview)
+      subview.translatesAutoresizingMaskIntoConstraints = false
+    }
+    
+    if !configuration.galleryOnly {
+      addSubview(cameraController.view)
+      addSubview(topView)
+      cameraController.view.addGestureRecognizer(panGestureRecognizer)
+    }
+    
+    for subview in [galleryView, bottomContainer] {
+      addSubview(subview)
     }
 
     view.addSubview(volumeView)
@@ -130,8 +140,6 @@ open class ImagePickerController: UIViewController {
 
     view.backgroundColor = UIColor.white
     view.backgroundColor = configuration.mainColor
-
-    cameraController.view.addGestureRecognizer(panGestureRecognizer)
 
     subscribe()
     setupConstraints()
@@ -158,10 +166,12 @@ open class ImagePickerController: UIViewController {
     galleryView.collectionView.transform = CGAffineTransform.identity
     galleryView.collectionView.contentInset = UIEdgeInsets.zero
 
-    galleryView.frame = CGRect(x: 0,
+    if !configuration.galleryOnly {
+      galleryView.frame = CGRect(x: 0,
                                y: totalSize.height - bottomContainer.frame.height - galleryHeight,
                                width: totalSize.width,
                                height: galleryHeight)
+    }
     galleryView.updateFrames()
     checkStatus()
 
@@ -245,7 +255,7 @@ open class ImagePickerController: UIViewController {
     
     NotificationCenter.default.addObserver(self,
                                            selector: #selector(dismissIfNeeded),
-                                           name: NSNotification.Name(rawValue: ImageStack.Notifications.imageDidDrop),
+                                           name: NSNotification.Name(rawValue: ImageStack.Notifications.imageDidPush),
                                            object: nil)
 
     NotificationCenter.default.addObserver(self,
