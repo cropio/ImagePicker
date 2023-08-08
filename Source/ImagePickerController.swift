@@ -5,10 +5,12 @@ import Photos
 @objc public class Image: NSObject {
 
   public let data: Data
+  public let name: String
   var image: UIImage? { UIImage(data: data) }
 
-  fileprivate init(data: Data) {
+  internal init(data: Data, name: String) {
     self.data = data
+    self.name = name
   }
 }
 
@@ -389,7 +391,7 @@ extension ImagePickerController: BottomContainerViewDelegate {
   }
 
   func doneButtonDidPress() {
-    let images = AssetManager.resolveAssets(stack.assets).map { Image(data: $0) }
+    let images = AssetManager.resolveAssets(stack.assets)
     delegate?.doneButtonDidPress(self, images: images)
   }
 
@@ -398,7 +400,7 @@ extension ImagePickerController: BottomContainerViewDelegate {
   }
 
   func imageStackViewDidPress() {
-    let images = AssetManager.resolveAssets(stack.assets).map { Image(data: $0) }
+    let images = AssetManager.resolveAssets(stack.assets)
     delegate?.wrapperDidPress(self, images: images)
   }
 }
