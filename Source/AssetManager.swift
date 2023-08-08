@@ -63,16 +63,17 @@ open class AssetManager {
     }
   }
  
-  public static func resolveAssets(_ assets: [PHAsset]) -> [Data] {
+  public static func resolveAssets(_ assets: [PHAsset]) -> [Image] {
     let imageManager = PHImageManager.default()
     let requestOptions = PHImageRequestOptions()
     requestOptions.isSynchronous = true
 
-    var images = [Data]()
+    var images = [Image]()
     for asset in assets {
-      imageManager.requestImageData(for: asset, options: requestOptions) { data, _, _, _ in
-        guard let data = data else { return }
-        images.append(data)
+      imageManager.requestImageData(for: asset, options: requestOptions) { data, name, _, _ in
+        guard let data else { return }
+        guard let name else { return }
+          images.append(Image(data: data, name: name))
       }
     }
     return images
