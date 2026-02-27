@@ -25,7 +25,10 @@ open class AssetManager {
   }
 
   public static func fetch(withConfiguration configuration: ImagePickerConfiguration, _ completion: @escaping (_ assets: [PHAsset]) -> Void) {
-    guard PHPhotoLibrary.authorizationStatus() == .authorized else { return }
+    guard PHPhotoLibrary.authorizationStatus() == .authorized else {
+      DispatchQueue.main.async { completion([]) }
+      return
+    }
 
     let options = PHFetchOptions()
     options.sortDescriptors = [NSSortDescriptor(key: "creationDate", ascending: true)]
