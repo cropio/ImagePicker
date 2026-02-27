@@ -20,6 +20,7 @@ class CameraMan {
   var stillImageOutput: AVCaptureStillImageOutput?
   var startOnFrontCamera: Bool = false
   var photoQuality: AVCaptureSession.Preset = .photo
+  var photoAlbumName: String? = nil
 
   deinit {
     stop()
@@ -174,15 +175,24 @@ class CameraMan {
   }
 
   func savePhoto(_ image: UIImage, location: CLLocation?, completion: (() -> Void)? = nil) {
-    PHPhotoLibrary.shared().performChanges({
-      let request = PHAssetChangeRequest.creationRequestForAsset(from: image)
-      request.creationDate = Date()
-      request.location = location
-      }, completionHandler: { (_, _) in
-        DispatchQueue.main.async {
-          completion?()
+    let saveBlock: (PHAssetCollection?) -> Void = { collection in
+      PHPhotoLibrary.shared().performChanges({
+        let request = PHAssetChangeRequest.creationRequestForAsset(from: image)
+        request.creationDate = Date()
+        request.location = location
+        if let collection = collection, let placeholder = request.placeholderForCreatedAsset {
+          PHAssetCollectionChangeRequest(for: collection)?.addAssets([placeholder] as NSArray)
         }
-    })
+      }, completionHandler: { _, _ in
+        DispatchQueue.main.async { completion?() }
+      })
+    }
+
+    if let albumName = photoAlbumName {
+      getOrCreateAlbum(named: albumName) { saveBlock($0) }
+    } else {
+      saveBlock(nil)
+    }
   }
 
   private func attachEXIF(to image: Data, exif: [String: Any]) -> Data? {
@@ -259,50 +269,62 @@ class CameraMan {
 
   func savePhoto(_ image: Data, location: CLLocation?, heading: CLHeading?, completion: (() -> Void)? = nil) {
 
-    func complite() {
-      DispatchQueue.main.async {
-        completion?()
-      }
+    func complete() {
+      DispatchQueue.main.async { completion?() }
     }
 
     let path = NSTemporaryDirectory() + "file-\(arc4random()).jpg"
     let url = URL(fileURLWithPath: path)
-    guard let imageSource = CGImageSourceCreateWithData(image as CFData, nil) else {
-      complite()
-      return
-    }
-    guard var properties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [String: Any] else {
-     complite()
-     return
-    }
+    guard let imageSource = CGImageSourceCreateWithData(image as CFData, nil) else { complete(); return }
+    guard var properties = CGImageSourceCopyPropertiesAtIndex(imageSource, 0, nil) as? [String: Any] else { complete(); return }
     if let location = location {
-        properties[kCGImagePropertyGPSDictionary as String] = self.getGPSDictionary(for: location, and: heading)
+      properties[kCGImagePropertyGPSDictionary as String] = self.getGPSDictionary(for: location, and: heading)
     }
-    guard let data = self.attachEXIF(to: image, exif: properties) else {
-      complite()
+    guard let data = self.attachEXIF(to: image, exif: properties) else { complete(); return }
+
+    let saveBlock: (PHAssetCollection?) -> Void = { collection in
+      PHPhotoLibrary.shared().performChanges({
+        let request: PHAssetChangeRequest?
+        do {
+          try data.write(to: url)
+          request = PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL: url)
+        } catch {
+          request = UIImage(data: image).flatMap {
+            PHAssetChangeRequest.creationRequestForAsset(from: $0)
+          }
+        }
+        guard let _request = request else { return }
+        _request.creationDate = Date()
+        _request.location = location
+        if let collection = collection, let placeholder = _request.placeholderForCreatedAsset {
+          PHAssetCollectionChangeRequest(for: collection)?.addAssets([placeholder] as NSArray)
+        }
+      }, completionHandler: { _, _ in complete() })
+    }
+
+    if let albumName = photoAlbumName {
+      getOrCreateAlbum(named: albumName) { saveBlock($0) }
+    } else {
+      saveBlock(nil)
+    }
+  }
+
+  private func getOrCreateAlbum(named name: String, completion: @escaping (PHAssetCollection?) -> Void) {
+    let fetchOptions = PHFetchOptions()
+    fetchOptions.predicate = NSPredicate(format: "title = %@", name)
+    let existing = PHAssetCollection.fetchAssetCollections(with: .album, subtype: .albumRegular, options: fetchOptions)
+    if let collection = existing.firstObject {
+      completion(collection)
       return
     }
-
+    var placeholder: PHObjectPlaceholder?
     PHPhotoLibrary.shared().performChanges({
-      let request: PHAssetChangeRequest?
-      do {
-        try data.write(to: url)
-        request = PHAssetChangeRequest.creationRequestForAssetFromImage(atFileURL: url)
-      } catch {
-        request = UIImage(data: image).flatMap {
-          PHAssetChangeRequest.creationRequestForAsset(from: $0)
-        }
-      }
-
-      guard let _request = request else {
-        complite()
-        return
-      }
-
-      _request.creationDate = Date()
-      _request.location = location
-    }, completionHandler: { (_, _) in
-      complite()
+      let request = PHAssetCollectionChangeRequest.creationRequestForAssetCollection(withTitle: name)
+      placeholder = request.placeholderForCreatedAssetCollection
+    }, completionHandler: { success, _ in
+      guard success, let id = placeholder?.localIdentifier else { completion(nil); return }
+      let collection = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [id], options: nil).firstObject
+      completion(collection)
     })
   }
 
