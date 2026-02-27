@@ -80,6 +80,19 @@ open class ImageGalleryView: UIView {
 
   open lazy var selectedStack = ImageStack()
   lazy var assets = [PHAsset]()
+  var isLoading = true
+
+  lazy var loadingIndicator: UIActivityIndicatorView = {
+    let style: UIActivityIndicatorView.Style
+    if #available(iOS 13.0, *) {
+      style = .medium
+    } else {
+      style = .gray
+    }
+    let indicator = UIActivityIndicatorView(style: style)
+    indicator.color = configuration.noImagesColor
+    return indicator
+  }()
 
   weak var delegate: ImageGalleryPanGestureDelegate?
   var collectionSize: CGSize?
@@ -121,6 +134,8 @@ open class ImageGalleryView: UIView {
 
     topSeparator.addSubview(configuration.indicatorView)
 
+    addSubview(loadingIndicator)
+
     imagesBeforeLoading = 0
     fetchPhotos()
   }
@@ -154,6 +169,7 @@ open class ImageGalleryView: UIView {
     }
     
     noImagesLabel.center = CGPoint(x: bounds.width / 2, y: (bounds.height + Dimensions.galleryBarHeight) / 2)
+    loadingIndicator.center = noImagesLabel.center
 
     collectionView.reloadData()
   }
@@ -175,7 +191,11 @@ open class ImageGalleryView: UIView {
   // MARK: - Photos handler
 
   func fetchPhotos(_ completion: (() -> Void)? = nil) {
+    isLoading = true
+    loadingIndicator.startAnimating()
     AssetManager.fetch(withConfiguration: configuration) { assets in
+      self.isLoading = false
+      self.loadingIndicator.stopAnimating()
       self.assets.removeAll()
       self.assets.append(contentsOf: assets)
       self.collectionView.reloadData()
@@ -204,7 +224,7 @@ open class ImageGalleryView: UIView {
   }
 
   func displayNoImagesMessage(_ hideCollectionView: Bool) {
-    collectionView.alpha = hideCollectionView ? 0 : 1
+    collectionView.alpha = (hideCollectionView && !isLoading) ? 0 : 1
     updateNoImagesLabel()
   }
 }
