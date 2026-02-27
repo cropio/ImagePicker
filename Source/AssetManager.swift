@@ -55,27 +55,37 @@ open class AssetManager {
     requestOptions.isNetworkAccessAllowed = true
 
     imageManager.requestImage(for: asset, targetSize: size, contentMode: .aspectFill, options: requestOptions) { image, info in
-      if let info = info, info["PHImageFileUTIKey"] == nil {
-        DispatchQueue.main.async(execute: {
-          completion(image)
-        })
+      let isDegraded = (info?[PHImageResultIsDegradedKey] as? Bool) == true
+      guard !isDegraded else { return }
+      DispatchQueue.main.async {
+        completion(image)
       }
     }
   }
- 
-  public static func resolveAssets(_ assets: [PHAsset]) -> [Image] {
+
+  public static func resolveAssets(_ assets: [PHAsset], completion: @escaping (_ images: [Image]) -> Void) {
     let imageManager = PHImageManager.default()
     let requestOptions = PHImageRequestOptions()
-    requestOptions.isSynchronous = true
+    requestOptions.isNetworkAccessAllowed = true
+    requestOptions.deliveryMode = .highQualityFormat
 
-    var images = [Image]()
-    for asset in assets {
+    let group = DispatchGroup()
+    var indexedImages = [(index: Int, image: Image)]()
+    let lock = NSLock()
+
+    for (index, asset) in assets.enumerated() {
+      group.enter()
       imageManager.requestImageData(for: asset, options: requestOptions) { data, name, _, _ in
-        guard let data else { return }
-        guard let name else { return }
-          images.append(Image(data: data, name: name))
+        defer { group.leave() }
+        guard let data = data, let name = name else { return }
+        lock.lock()
+        indexedImages.append((index, Image(data: data, name: name)))
+        lock.unlock()
       }
     }
-    return images
+
+    group.notify(queue: .main) {
+      completion(indexedImages.sorted { $0.index < $1.index }.map { $0.image })
+    }
   }
 }
