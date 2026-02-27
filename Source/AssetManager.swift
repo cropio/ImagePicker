@@ -35,15 +35,13 @@ open class AssetManager {
         ? PHAsset.fetchAssets(with: options)
         : PHAsset.fetchAssets(with: .image, options: options)
 
-      if fetchResult.count > 0 {
-        var assets = [PHAsset]()
-        fetchResult.enumerateObjects({ object, _, _ in
-          assets.insert(object, at: 0)
-        })
+      var assets = [PHAsset]()
+      fetchResult.enumerateObjects({ object, _, _ in
+        assets.insert(object, at: 0)
+      })
 
-        DispatchQueue.main.async {
-          completion(assets)
-        }
+      DispatchQueue.main.async {
+        completion(assets)
       }
     }
   }
@@ -61,6 +59,22 @@ open class AssetManager {
         completion(image)
       }
     }
+  }
+
+  @available(*, deprecated, renamed: "resolveAssets(_:completion:)")
+  public static func resolveAssets(_ assets: [PHAsset]) -> [Image] {
+    let imageManager = PHImageManager.default()
+    let requestOptions = PHImageRequestOptions()
+    requestOptions.isSynchronous = true
+
+    var images = [Image]()
+    for asset in assets {
+      imageManager.requestImageData(for: asset, options: requestOptions) { data, name, _, _ in
+        guard let data = data, let name = name else { return }
+        images.append(Image(data: data, name: name))
+      }
+    }
+    return images
   }
 
   public static func resolveAssets(_ assets: [PHAsset], completion: @escaping (_ images: [Image]) -> Void) {
