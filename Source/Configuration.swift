@@ -55,6 +55,7 @@ import UIKit
   @objc public var useLowResolutionPreviewImage = false
   @objc public var photoQuality: AVCaptureSession.Preset = .high
   @objc public var galleryOnly = false
+  @objc public var photoAlbumName: String? = nil
 
   // MARK: Images
   @objc public var indicatorView: UIView = {

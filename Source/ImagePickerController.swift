@@ -391,8 +391,11 @@ extension ImagePickerController: BottomContainerViewDelegate {
   }
 
   func doneButtonDidPress() {
-    let images = AssetManager.resolveAssets(stack.assets)
-    delegate?.doneButtonDidPress(self, images: images)
+    setLoadingState(true)
+    AssetManager.resolveAssets(stack.assets) { images in
+      self.setLoadingState(false)
+      self.delegate?.doneButtonDidPress(self, images: images)
+    }
   }
 
   func cancelButtonDidPress() {
@@ -400,8 +403,34 @@ extension ImagePickerController: BottomContainerViewDelegate {
   }
 
   func imageStackViewDidPress() {
-    let images = AssetManager.resolveAssets(stack.assets)
-    delegate?.wrapperDidPress(self, images: images)
+    setLoadingState(true)
+    AssetManager.resolveAssets(stack.assets) { images in
+      self.setLoadingState(false)
+      self.delegate?.wrapperDidPress(self, images: images)
+    }
+  }
+
+  private func setLoadingState(_ loading: Bool) {
+    bottomContainer.doneButton.isHidden = loading
+    bottomContainer.tapGestureRecognizer.isEnabled = !loading
+    if loading {
+      let style: UIActivityIndicatorView.Style
+      if #available(iOS 13.0, *) {
+        style = .medium
+      } else {
+        style = .white
+      }
+      let indicator = UIActivityIndicatorView(style: style)
+      indicator.color = .white
+      indicator.tag = 999
+      indicator.translatesAutoresizingMaskIntoConstraints = false
+      bottomContainer.addSubview(indicator)
+      bottomContainer.addConstraint(NSLayoutConstraint(item: indicator, attribute: .centerX, relatedBy: .equal, toItem: bottomContainer.doneButton, attribute: .centerX, multiplier: 1, constant: 0))
+      bottomContainer.addConstraint(NSLayoutConstraint(item: indicator, attribute: .centerY, relatedBy: .equal, toItem: bottomContainer.doneButton, attribute: .centerY, multiplier: 1, constant: 0))
+      indicator.startAnimating()
+    } else {
+      bottomContainer.subviews.first(where: { $0.tag == 999 })?.removeFromSuperview()
+    }
   }
 }
 

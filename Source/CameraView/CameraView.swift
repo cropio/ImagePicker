@@ -136,6 +136,7 @@ class CameraView: UIViewController, CLLocationManagerDelegate, CameraManDelegate
     }
 
     cameraMan.delegate = self
+    cameraMan.photoAlbumName = configuration.photoAlbumName
     cameraMan.setup(self.startOnFrontCamera, photoQuality: self.configuration.photoQuality)
   }
 
